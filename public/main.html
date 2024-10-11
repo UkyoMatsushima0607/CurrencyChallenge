@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>通貨N円両替ガチャ</title>
+</head>
+
+<body>
+  <div class="main">
+    <!-- N円で両替できる各通貨のうち、すべての主要貨幣と交換できる通貨をガチャ形式で回します -->
+    <div>
+      <div class="title">貨幣N円ガチャ</div>
+      <div class="notification">
+        <div>貨幣の単位はwikipediaなどを参考にしています。</div>
+        <div>正確性は一切保証しておりません。</div>
+      </div>
+    </div>
+    <div>
+      <div>
+        <button class="button" onclick="{getCurrencyInfo(1000)}">1000円ガチャを回す</button>
+      </div>
+      <div>
+        <button class="button" onclick="{getCurrencyInfo(5000)}">5000円ガチャを回す</button>
+      </div>
+      <div>
+        <button class="button" onclick="{getCurrencyInfo(10000)}">10000円ガチャを回す</button>
+      </div>
+      <div>
+        <button class="button" onclick="{getCurrencyInfo()}">ランダム円ガチャを回す</button>
+      </div>
+    </div>
+
+    <table id="currency-data" class="d-none"></table>
+  </div>
+</body>
+
+<style>
+  @import url('https://fonts.googleapis.com/css?family=Noto+Sans+JP');
+
+  body {
+    background-color: darkslategrey;
+    text-align: center;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+
+  .main {
+    background-color: whitesmoke;
+    width: fit-content;
+    padding: 1rem;
+    margin: auto;
+  }
+
+  .title {
+    font-size: xx-large;
+    font-weight: bold;
+
+  }
+
+  .notification {
+    font-size: x-small;
+  }
+
+  .button {
+    width: 15rem;
+    font-size: medium;
+    padding: 0.25rem;
+    margin: 0.25rem;
+    border: none;
+    border-radius: 0.25rem;
+    color: white;
+    background-color: darkblue;
+  }
+
+  .d-none {
+    display: none;
+  }
+
+  table#currency-data {
+    border-collapse: separate;
+    border-spacing: 0px;
+    margin: 1rem auto;
+    text-align: left;
+    width: auto;
+  }
+
+  table#currency-data tr th,
+  table#currency-data tr td {
+    border-top: 1px solid darkgray;
+    padding: 0.5rem;
+  }
+</style>
+
+<script>
+  function getCurrencyInfo(amount = null) {
+    if (amount == null) {
+      // 999999 - 1
+      amount = Math.floor(Math.random() * 10000000 + 1);
+    }
+
+    // Goサーバーから/currencyエンドポイントのデータを取得
+    fetch('http://localhost:8080/currency')
+      .then(response => response.json())
+      .then(data => {
+        displayCurrencyInfo(data, amount);
+      })
+      .catch(error => {
+        console.error('Error data:', error);
+      });
+  }
+
+  // 通貨情報を画面に表示する関数
+  function displayCurrencyInfo(currencyInfos, amount) {
+    const container = document.getElementById('currency-data');
+
+    // テーブルの中身を削除する
+    while (container.rows.length > 0) {
+      container.deleteRow(0);
+    }
+
+    let sum = 0;
+    const currencyTbody = document.createElement('tbody');
+    currencyInfos.forEach(info => {
+      // 目標金額以下の場合は追加
+      if (sum + info.PRICE <= amount) {
+        const currencyTr = document.createElement('tr');
+        currencyTr.innerHTML =
+          `<td>${info.CODE} (${info.NAME}</td>`
+          + `<td>${info.RATE}</td>`
+          + `<td>${info.DENOMI.join(', ')}</td>`
+          + `<td>${info.PRICE}</td>`;
+
+        // テーブルに追加
+        currencyTbody.appendChild(currencyTr);
+
+        // ガチャ合計に加算
+        sum += info.PRICE;
+      }
+    });
+
+    // ヘッダーを挿入
+    const currencyThead = document.createElement('thead');
+    currencyThead.innerHTML =
+      "<tr>"
+      + "<th>コード(通貨)</th>"
+      + "<th>レート(1円当たり)</th>"
+      + "<th>貨幣(紙幣・硬貨)</th>"
+      + "<th>合計金額(円)</th>"
+      + "</tr>";
+    container.appendChild(currencyThead);
+
+    // 取得したデータを通貨コード順に並び替える
+    const rowElements = currencyTbody.rows;
+    const result = Array.from(rowElements).sort(function (i, j) {
+      return (i.cells[0].innerText < j.cells[0].innerText) ? -1 : 1;
+    });
+
+    // ソートしたデータを移動
+    for (let i = 0; i < result.length; i++) {
+      currencyTbody.appendChild(result[i]);
+    }
+
+    // ボディを挿入
+    container.appendChild(currencyTbody);
+
+    // フッターを挿入
+    const currencyTfoot = document.createElement('tfoot');
+    currencyTfoot.innerHTML =
+      `<tr>`
+      + `<th colspan="4">ガチャ合計: ${sum}円 / 予算: ${amount}円</th>`
+      + `</tr>`;
+    container.appendChild(currencyTfoot);
+
+    container.classList.remove('d-none');
+  }
+</script>
+
+</html>
